@@ -106,14 +106,23 @@ class QConv2dBase(QConvArgsProviderMixin, QConv2d_NoAct):  # type: ignore
         return super().forward(self.activation(input_tensor))
 
 
+import copy
 class _QConv2dComposed(DefaultImplementationMixin, QConv2dBase):
     """
     This class defines the default implementation of a QConv2d layer (which is actually implemented by QConv2dBase).
 
     To implement a custom QConv2d implementation use QConv2dBase as a super class instead.
     """
-
-    pass
+    def __deepcopy__(self, memo):
+        # 创建一个新的实例
+        new_instance = self.__class__.__new__(self.__class__)
+        memo[id(self)] = new_instance
+        
+        # 深拷贝所有属性
+        for k, v in self.__dict__.items():
+            setattr(new_instance, k, copy.deepcopy(v, memo))
+        
+        return new_instance
 
 
 QConv2d: Type[_QConv2dComposed] = QConv2dImplementation(RuntimeMode.DEFAULT)(_QConv2dComposed)  # type: ignore
