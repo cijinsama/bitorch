@@ -10,9 +10,12 @@ from .config import config
 
 class GradientCancellation(Function):
     @staticmethod
+    def setup_context(ctx, inputs, output):
+        ctx.save_for_backward(inputs[0], torch.tensor(inputs[1], device=inputs[0].device))
+
+    @staticmethod
     @typing.no_type_check
     def forward(
-        ctx: torch.autograd.function.BackwardCFunction,  # type: ignore
         input_tensor: torch.Tensor,
         threshold: float,
     ) -> torch.Tensor:
@@ -24,8 +27,7 @@ class GradientCancellation(Function):
         Returns:
             tensor: binarized input tensor
         """
-        ctx.save_for_backward(input_tensor, torch.tensor(threshold, device=input_tensor.device))
-        return input_tensor
+        return input_tensor.view_as(input_tensor)
 
     @staticmethod
     @typing.no_type_check
@@ -50,6 +52,34 @@ class GradientCancellation(Function):
         )
         return cancelled, None
 
+    @staticmethod
+    def vmap(info, in_dims, input_tensor, threshold):
+        """
+        Define behavior of the autograd function under vmap.
+
+        Args:
+            info: Information about vmap (e.g., batch_size).
+            in_dims: Tuple specifying the batch dimension for each input.
+            input_tensor: Batched input tensor (with batch dimension at in_dims[0]).
+            threshold: Scalar threshold (or batched threshold, depending on in_dims[1]).
+
+        Returns:
+            Tuple[output, out_dims]: Output tensor and its batch dimension.
+        """
+        # Ensure input_tensor has a batch dimension
+        input_batch_dim = in_dims[0]
+        if input_batch_dim is not None and input_batch_dim != 0:
+            input_tensor = input_tensor.movedim(input_batch_dim, 0)
+
+        # Ensure threshold has a batch dimension if provided
+        if in_dims[1] is not None:
+            threshold = threshold.movedim(in_dims[1], 0)
+
+        # Forward pass is a view operation, so return the input directly
+        output = input_tensor.view_as(input_tensor)
+        out_dims = 0  # Output has batch dimension at index 0
+
+        return output, out_dims
 
 class QActivation(nn.Module):
     """Activation layer for quantization"""
