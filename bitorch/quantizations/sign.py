@@ -10,13 +10,11 @@ from .base import Quantization, STE
 class SignFunction(STE):
     @staticmethod
     def setup_context(ctx, inputs, output):
-        # ctx.save_for_backward(inputs[0], torch.tensor(inputs[1], device=inputs[0].device))
         pass
 
     @staticmethod
     @typing.no_type_check
     def forward(
-        # ctx: torch.autograd.function.BackwardCFunction,  # type: ignore
         input_tensor: torch.Tensor,
     ) -> torch.Tensor:
         """Binarize the input tensor using the sign function.
